@@ -1,0 +1,58 @@
+name: Windows Installer
+
+# Builds the Webcamoid Windows x64 installer (NSIS .exe) and a portable .zip
+# using the project's own MSYS2 recipe (ports/ci/windows-msys), then publishes
+# them as a downloadable workflow artifact.
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: msys2 {0}
+    env:
+      TARGET_ARCH: x86_64
+      COMPILER: gcc
+      # Same build configuration as the official release packages.
+      UPLOAD: 1
+    steps:
+    - uses: actions/checkout@v6
+    - uses: msys2/setup-msys2@v2
+      with:
+        update: true
+        install: >-
+          ccache
+          clang
+          cmake
+          git
+          make
+          ninja
+          pkgconf
+          python3
+          unzip
+          mingw-w64-x86_64-binutils
+          mingw-w64-x86_64-ccache
+          mingw-w64-x86_64-clang
+          mingw-w64-x86_64-cmake
+          mingw-w64-x86_64-ffmpeg
+          mingw-w64-x86_64-ninja
+          mingw-w64-x86_64-pkgconf
+          mingw-w64-x86_64-qt6
+    - name: Install dependencies
+      run: ./ports/ci/windows-msys/install_deps.sh
+    - name: Build
+      run: ./ports/ci/windows-msys/build.sh
+    - name: Package
+      run: ./ports/ci/windows-msys/deploy.sh
+    - name: Upload installer
+      uses: actions/upload-artifact@v4
+      with:
+        name: webcamoid-windows-x64
+        path: webcamoid-packages/windows/*
+        if-no-files-found: error
+        compression-level: 0
